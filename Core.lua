@@ -7,8 +7,6 @@ addon.defaultConfig = {
     },
     buffGroups = {
     },
-    spellConditions = {
-    },
     iconSize = 50,
     spacing = 10,
     columns = 3,
@@ -110,21 +108,6 @@ local function RemoveSpellFromAllGroups(spellKey)
 end
 addon.RemoveSpellFromAllGroups = RemoveSpellFromAllGroups
 
-local function IsConditionMet(condition)
-    if not condition or condition == "always" then return true end
-    if condition == "combat" then return UnitAffectingCombat("player") end
-    if condition == "nocombat" then return not UnitAffectingCombat("player") end
-    if condition == "resting" then return IsResting() end
-    if condition == "noresting" then return not IsResting() end
-    return true
-end
-
-local function IsSpellActiveNow(spellInput)
-    if not SelfBuffTrackerDB.trackedSpells[spellInput] then return false end
-    local condition = SelfBuffTrackerDB.spellConditions and SelfBuffTrackerDB.spellConditions[spellInput]
-    return IsConditionMet(condition)
-end
-
 local function IsSpellPresent(spellInput)
     local isPresent = false
     local targetName = spellInput:lower()
@@ -150,79 +133,6 @@ local function IsSpellPresent(spellInput)
     end
 
     return isPresent
-end
-
-function addon.DebugBuffState(spellInput)
-    local lines = {}
-    table.insert(lines, "tracked: " .. tostring(SelfBuffTrackerDB.trackedSpells[spellInput]))
-    local condition = SelfBuffTrackerDB.spellConditions and SelfBuffTrackerDB.spellConditions[spellInput]
-    table.insert(lines, "condition: " .. tostring(condition))
-    table.insert(lines, "UnitAffectingCombat: " .. tostring(UnitAffectingCombat("player")))
-    table.insert(lines, "IsResting: " .. tostring(IsResting()))
-    table.insert(lines, "IsSpellActiveNow (passes condition): " .. tostring(IsSpellActiveNow(spellInput)))
-    table.insert(lines, "IsSpellPresent (aura up right now): " .. tostring(IsSpellPresent(spellInput)))
-    table.insert(lines, "group: " .. tostring(FindGroupForSpell(spellInput)))
-
-    table.insert(lines, "--- presence check breakdown ---")
-    local targetName = spellInput:lower()
-    local spellID = tonumber(spellInput)
-    table.insert(lines, "tonumber(input): " .. tostring(spellID))
-    table.insert(lines, "GetPlayerAuraBySpellID(numeric id): "
-        .. tostring(spellID and C_UnitAuras.GetPlayerAuraBySpellID(spellID) ~= nil))
-
-    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spellInput)
-    table.insert(lines, "C_Spell.GetSpellInfo(name).spellID: " .. tostring(info and info.spellID))
-    table.insert(lines, "GetPlayerAuraBySpellID(name-resolved id): "
-        .. tostring(info and info.spellID and C_UnitAuras.GetPlayerAuraBySpellID(info.spellID) ~= nil))
-
-    if C_UnitAuras.GetAuraDataBySpellName then
-        local auraExact = C_UnitAuras.GetAuraDataBySpellName("player", spellInput, "HELPFUL")
-        local auraLower = C_UnitAuras.GetAuraDataBySpellName("player", targetName, "HELPFUL")
-        table.insert(lines, "GetAuraDataBySpellName(exact case): " .. tostring(auraExact ~= nil))
-        table.insert(lines, "GetAuraDataBySpellName(lowercase): " .. tostring(auraLower ~= nil))
-    else
-        table.insert(lines, "GetAuraDataBySpellName: not available on this client")
-    end
-
-    table.insert(lines, "--- your current buffs (exact names) ---")
-    local foundAny = false
-    if AuraUtil and AuraUtil.ForEachAura then
-        local ok, err = pcall(AuraUtil.ForEachAura, "player", "HELPFUL", nil, function(aura)
-            if aura then
-                foundAny = true
-                table.insert(lines, "'" .. tostring(aura.name) .. "' (spellID=" .. tostring(aura.spellId) .. ")")
-            end
-        end, true)
-        if not ok then
-            table.insert(lines, "AuraUtil.ForEachAura failed: " .. tostring(err))
-        end
-    end
-    if not foundAny and UnitAura then
-        local i = 1
-        while true do
-            local name, _, _, _, _, _, _, _, _, auraSpellID = UnitAura("player", i, "HELPFUL")
-            if not name then break end
-            foundAny = true
-            table.insert(lines, i .. ": '" .. name .. "' (spellID=" .. tostring(auraSpellID) .. ")")
-            i = i + 1
-            if i > 40 then break end
-        end
-    end
-    if not foundAny then
-        table.insert(lines, "no aura enumeration method available or returned no results")
-    end
-
-    table.insert(lines, "--- full last CheckBuffs() render (" .. (addon.lastMissingSpells and #addon.lastMissingSpells or 0) .. " icons) ---")
-    if addon.lastMissingSpells then
-        for i, entry in ipairs(addon.lastMissingSpells) do
-            table.insert(lines, i .. ": key=" .. tostring(entry.key) .. " isGroup=" .. tostring(entry.isGroup)
-                .. " representative=" .. tostring(entry.representative))
-        end
-    else
-        table.insert(lines, "CheckBuffs has not run yet")
-    end
-
-    return lines
 end
 
 local lastSoundTime = 0
@@ -251,8 +161,8 @@ local function CheckBuffs()
     end
 
     local spellPresence = {}
-    for spellInput in pairs(SelfBuffTrackerDB.trackedSpells) do
-        if IsSpellActiveNow(spellInput) then
+    for spellInput, enabled in pairs(SelfBuffTrackerDB.trackedSpells) do
+        if enabled then
             spellPresence[spellInput] = IsSpellPresent(spellInput)
         end
     end
@@ -266,8 +176,8 @@ local function CheckBuffs()
 
     local missingSpells = {}
     local processedGroups = {}
-    for spellInput in pairs(SelfBuffTrackerDB.trackedSpells) do
-        if IsSpellActiveNow(spellInput) then
+    for spellInput, enabled in pairs(SelfBuffTrackerDB.trackedSpells) do
+        if enabled then
             local groupName = spellToGroup[spellInput]
             if groupName then
                 if not processedGroups[groupName] then
@@ -277,7 +187,7 @@ local function CheckBuffs()
                     local representative = nil
                     local preferredIconValid = false
                     for _, member in ipairs(group.members) do
-                        if IsSpellActiveNow(member) then
+                        if SelfBuffTrackerDB.trackedSpells[member] then
                             representative = representative or member
                             if member == group.iconSpell then
                                 preferredIconValid = true
@@ -304,8 +214,6 @@ local function CheckBuffs()
             end
         end
     end
-
-    addon.lastMissingSpells = missingSpells
 
     for _, icon in ipairs(iconPool) do
         icon:Hide()
@@ -411,8 +319,6 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("UNIT_AURA")
 frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-frame:RegisterEvent("PLAYER_UPDATE_RESTING")
 frame:RegisterEvent("PLAYER_ALIVE")
 frame:RegisterEvent("PLAYER_UNGHOST")
 frame:RegisterEvent("PLAYER_ENTER_COMBAT")
@@ -462,7 +368,6 @@ frame:SetScript("OnEvent", function(self, event, unit, ...)
             addon.SaveActiveProfile()
         end
     elseif event == "PLAYER_ENTERING_WORLD" or (event == "UNIT_AURA" and unit == "player") or event == "PLAYER_REGEN_DISABLED"
-        or event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_UPDATE_RESTING"
         or event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" or event == "PLAYER_ENTER_COMBAT"
         or event == "PLAYER_CONTROL_GAINED" then
         CheckBuffs()

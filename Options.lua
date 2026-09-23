@@ -269,14 +269,6 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
 
     local ROW_HEIGHT = 64
 
-    local CONDITION_OPTIONS = {
-        { value = nil, label = L.CONDITION_ALWAYS },
-        { value = "combat", label = L.CONDITION_COMBAT },
-        { value = "nocombat", label = L.CONDITION_NOCOMBAT },
-        { value = "resting", label = L.CONDITION_RESTING },
-        { value = "noresting", label = L.CONDITION_NORESTING },
-    }
-
     local function GetSpellIcon(spellName)
         local info = C_Spell.GetSpellInfo(spellName)
         if info and info.iconID then
@@ -333,10 +325,6 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
                 row.groupDropdown:SetPoint("TOPLEFT", row.text, "BOTTOMLEFT", -16, -6)
                 UIDropDownMenu_SetWidth(row.groupDropdown, 140)
 
-                row.conditionDropdown = CreateFrame("Frame", nil, row, "UIDropDownMenuTemplate")
-                row.conditionDropdown:SetPoint("LEFT", row.groupDropdown, "RIGHT", -20, 0)
-                UIDropDownMenu_SetWidth(row.conditionDropdown, 130)
-
                 spellRows[i] = row
             end
 
@@ -347,7 +335,6 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
             row.text:SetText(spell)
             row.removeButton:SetScript("OnClick", function()
                 SelfBuffTrackerDB.trackedSpells[spell] = nil
-                if SelfBuffTrackerDB.spellConditions then SelfBuffTrackerDB.spellConditions[spell] = nil end
                 if addon.RemoveSpellFromAllGroups then addon.RemoveSpellFromAllGroups(spell) end
                 addon.CheckBuffs()
                 RefreshSpellList()
@@ -381,30 +368,6 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
                 end
             end)
             UIDropDownMenu_SetText(row.groupDropdown, (addon.FindGroupForSpell and addon.FindGroupForSpell(spell)) or L.GROUP_NONE)
-
-            UIDropDownMenu_Initialize(row.conditionDropdown, function(dropdown, level)
-                for _, option in ipairs(CONDITION_OPTIONS) do
-                    local info = UIDropDownMenu_CreateInfo()
-                    info.text = option.label
-                    info.func = function()
-                        SelfBuffTrackerDB.spellConditions[spell] = option.value
-                        UIDropDownMenu_SetText(row.conditionDropdown, option.label)
-                        CloseDropDownMenus()
-                        addon.CheckBuffs()
-                    end
-                    UIDropDownMenu_AddButton(info, level)
-                end
-            end)
-
-            local currentCondition = SelfBuffTrackerDB.spellConditions and SelfBuffTrackerDB.spellConditions[spell]
-            local currentConditionLabel = L.CONDITION_ALWAYS
-            for _, option in ipairs(CONDITION_OPTIONS) do
-                if option.value == currentCondition then
-                    currentConditionLabel = option.label
-                    break
-                end
-            end
-            UIDropDownMenu_SetText(row.conditionDropdown, currentConditionLabel)
 
             row:Show()
         end

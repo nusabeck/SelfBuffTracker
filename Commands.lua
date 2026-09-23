@@ -33,7 +33,6 @@ SlashCmdList["SELFBUFFTRACKER"] = function(msg)
         local spell = CleanSpellName(rawSpell)
 
         SelfBuffTrackerDB.trackedSpells[spell] = nil
-        if SelfBuffTrackerDB.spellConditions then SelfBuffTrackerDB.spellConditions[spell] = nil end
         if addon.RemoveSpellFromAllGroups then addon.RemoveSpellFromAllGroups(spell) end
         print("|cff00ff00[SBT]|r " .. string.format(L.CMD_REMOVED, spell))
         addon.CheckBuffs()
@@ -205,16 +204,6 @@ SlashCmdList["SELFBUFFTRACKER"] = function(msg)
         SelfBuffTrackerDB.columns = tonumber(args[2])
         print("|cff00ff00[SBT]|r Počet sloupců nastaven na: " .. args[2])
         addon.CheckBuffs()
-
-    elseif cmd == "debugbuff" and args[2] then
-        table.remove(args, 1)
-        local spell = CleanSpellName(table.concat(args, " "))
-        print("|cff00ff00[SBT DEBUG]|r " .. spell)
-        if addon.DebugBuffState then
-            for _, line in ipairs(addon.DebugBuffState(spell)) do
-                print("  " .. line)
-            end
-        end
     else
         print("|cff00ff00" .. L.HELP_HEADER .. "|r")
         print("|cffffaa00" .. L.HELP_ADD .. "|r")

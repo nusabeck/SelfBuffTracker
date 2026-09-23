@@ -67,13 +67,6 @@ local BASE = {
     PROFILE_IMPORTED = "Imported data from profile: %s",
     PROFILE_DELETED = "Deleted profile: %s",
 
-    CONDITION_LABEL = "Show:",
-    CONDITION_ALWAYS = "Always",
-    CONDITION_COMBAT = "In Combat Only",
-    CONDITION_NOCOMBAT = "Out of Combat Only",
-    CONDITION_RESTING = "Resting Only",
-    CONDITION_NORESTING = "Not Resting Only",
-
     PICKER_TITLE = "Choose a buff to track",
     PICKER_BUFFS_ONLY = "buffs only",
     PICKER_HINT_SPEC = "List matches your current specialization",
@@ -207,13 +200,6 @@ local overrides = {
         PROFILE_SWITCHED = "Zu Profil gewechselt: %s",
         PROFILE_IMPORTED = "Daten aus Profil importiert: %s",
         PROFILE_DELETED = "Profil gelöscht: %s",
-
-        CONDITION_LABEL = "Anzeigen:",
-        CONDITION_ALWAYS = "Immer",
-        CONDITION_COMBAT = "Nur im Kampf",
-        CONDITION_NOCOMBAT = "Nur außerhalb des Kampfes",
-        CONDITION_RESTING = "Nur beim Ausruhen",
-        CONDITION_NORESTING = "Nur ohne Ausruhen",
 
         CMD_GROUP_CREATED = "Gruppe erstellt: %s",
         CMD_GROUP_EXISTS = "Gruppe '%s' existiert bereits",
