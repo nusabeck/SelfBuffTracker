@@ -33,6 +33,7 @@ SlashCmdList["SELFBUFFTRACKER"] = function(msg)
         local spell = CleanSpellName(rawSpell)
 
         SelfBuffTrackerDB.trackedSpells[spell] = nil
+        if SelfBuffTrackerDB.spellConditions then SelfBuffTrackerDB.spellConditions[spell] = nil end
         if addon.RemoveSpellFromAllGroups then addon.RemoveSpellFromAllGroups(spell) end
         print("|cff00ff00[SBT]|r " .. string.format(L.CMD_REMOVED, spell))
         addon.CheckBuffs()

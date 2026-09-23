@@ -7,6 +7,8 @@ addon.defaultConfig = {
     },
     buffGroups = {
     },
+    spellConditions = {
+    },
     iconSize = 50,
     spacing = 10,
     columns = 3,
@@ -108,6 +110,21 @@ local function RemoveSpellFromAllGroups(spellKey)
 end
 addon.RemoveSpellFromAllGroups = RemoveSpellFromAllGroups
 
+local function IsConditionMet(condition)
+    if not condition or condition == "always" then return true end
+    if condition == "combat" then return UnitAffectingCombat("player") end
+    if condition == "nocombat" then return not UnitAffectingCombat("player") end
+    if condition == "resting" then return IsResting() end
+    if condition == "noresting" then return not IsResting() end
+    return true
+end
+
+local function IsSpellActiveNow(spellInput)
+    if not SelfBuffTrackerDB.trackedSpells[spellInput] then return false end
+    local condition = SelfBuffTrackerDB.spellConditions and SelfBuffTrackerDB.spellConditions[spellInput]
+    return IsConditionMet(condition)
+end
+
 local lastSoundTime = 0
 local previouslyMissing = {}
 
@@ -161,8 +178,8 @@ local function CheckBuffs()
     end
 
     local spellPresence = {}
-    for spellInput, enabled in pairs(SelfBuffTrackerDB.trackedSpells) do
-        if enabled then
+    for spellInput in pairs(SelfBuffTrackerDB.trackedSpells) do
+        if IsSpellActiveNow(spellInput) then
             spellPresence[spellInput] = IsSpellPresent(spellInput)
         end
     end
@@ -176,8 +193,8 @@ local function CheckBuffs()
 
     local missingSpells = {}
     local processedGroups = {}
-    for spellInput, enabled in pairs(SelfBuffTrackerDB.trackedSpells) do
-        if enabled then
+    for spellInput in pairs(SelfBuffTrackerDB.trackedSpells) do
+        if IsSpellActiveNow(spellInput) then
             local groupName = spellToGroup[spellInput]
             if groupName then
                 if not processedGroups[groupName] then
@@ -187,7 +204,7 @@ local function CheckBuffs()
                     local representative = nil
                     local preferredIconValid = false
                     for _, member in ipairs(group.members) do
-                        if SelfBuffTrackerDB.trackedSpells[member] then
+                        if IsSpellActiveNow(member) then
                             representative = representative or member
                             if member == group.iconSpell then
                                 preferredIconValid = true
@@ -319,6 +336,8 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("UNIT_AURA")
 frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+frame:RegisterEvent("PLAYER_UPDATE_RESTING")
 frame:RegisterEvent("PLAYER_ALIVE")
 frame:RegisterEvent("PLAYER_UNGHOST")
 frame:RegisterEvent("PLAYER_ENTER_COMBAT")
@@ -337,6 +356,13 @@ frame:SetScript("OnEvent", function(self, event, unit, ...)
             end
         end
 
+        if addon.MigrateLegacyProfiles then
+            addon.MigrateLegacyProfiles()
+        end
+        if addon.LoadActiveProfileIntoLive then
+            addon.LoadActiveProfileIntoLive()
+        end
+
         addon.container:ClearAllPoints()
         if SelfBuffTrackerDB.anchorPosition and #SelfBuffTrackerDB.anchorPosition == 5 then
             addon.container:SetPoint(unpack(SelfBuffTrackerDB.anchorPosition))
@@ -349,18 +375,19 @@ frame:SetScript("OnEvent", function(self, event, unit, ...)
             addon.RefreshLocale()
         end
 
-        if addon.SaveCharacterSnapshot then
-            addon.SaveCharacterSnapshot()
+        if addon.SaveActiveProfile then
+            addon.SaveActiveProfile()
         end
 
         if addon.InitOptionsPanel then
             addon.InitOptionsPanel()
         end
     elseif event == "PLAYER_LOGOUT" then
-        if addon.SaveCharacterSnapshot then
-            addon.SaveCharacterSnapshot()
+        if addon.SaveActiveProfile then
+            addon.SaveActiveProfile()
         end
     elseif event == "PLAYER_ENTERING_WORLD" or (event == "UNIT_AURA" and unit == "player") or event == "PLAYER_REGEN_DISABLED"
+        or event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_UPDATE_RESTING"
         or event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" or event == "PLAYER_ENTER_COMBAT"
         or event == "PLAYER_CONTROL_GAINED" then
         CheckBuffs()

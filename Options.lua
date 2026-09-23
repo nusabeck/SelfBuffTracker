@@ -3,34 +3,106 @@ local addonName, addon = ...
 local category
 local spellRows = {}
 
+StaticPopupDialogs["SELFBUFFTRACKER_DELETE_PROFILE"] = {
+    text = addon.L and addon.L.PROFILE_CONFIRM_DELETE,
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self, data)
+        if not addon.DeleteProfile then return end
+        local L = addon.L
+        if addon.DeleteProfile(data) then
+            print("|cff00ff00[SBT]|r " .. string.format(L.PROFILE_DELETED, data))
+        else
+            print("|cff00ff00[SBT]|r " .. L.PROFILE_CANNOT_DELETE_LAST)
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+StaticPopupDialogs["SELFBUFFTRACKER_IMPORT_PROFILE"] = {
+    text = addon.L and addon.L.PROFILE_CONFIRM_IMPORT,
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self, data)
+        if not addon.CopyProfileDataInto then return end
+        local L = addon.L
+        if addon.CopyProfileDataInto(data) then
+            print("|cff00ff00[SBT]|r " .. string.format(L.PROFILE_IMPORTED, data))
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 local function CreateTrackedBuffsSubcategory(parentCategory)
     local L = addon.L
 
     local panel = CreateFrame("Frame", "SelfBuffTrackerBuffsPanel", UIParent)
     panel.name = L.TRACKED_BUFFS
 
-    local copyLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    copyLabel:SetPoint("TOPLEFT", 16, -16)
-    copyLabel:SetText(L.COPY_LABEL)
-    addon.ApplyFont(copyLabel, "normal")
+    local profilesLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    profilesLabel:SetPoint("TOPLEFT", 16, -16)
+    profilesLabel:SetText(L.PROFILES_TITLE)
+    addon.ApplyFont(profilesLabel, "normalLarge")
 
-    local copyDropdown = CreateFrame("Frame", "SelfBuffTrackerOptionsCopyDropdown", panel, "UIDropDownMenuTemplate")
-    copyDropdown:SetPoint("TOPLEFT", copyLabel, "BOTTOMLEFT", -16, -4)
-    UIDropDownMenu_SetWidth(copyDropdown, 160)
+    local activeProfileLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    activeProfileLabel:SetPoint("TOPLEFT", profilesLabel, "BOTTOMLEFT", 0, -8)
+    addon.ApplyFont(activeProfileLabel, "normal")
 
-    local selectedProfileKey
+    local profileNameEditBox = CreateFrame("EditBox", "SelfBuffTrackerOptionsProfileEditBox", panel, "InputBoxTemplate")
+    profileNameEditBox:SetAutoFocus(false)
+    profileNameEditBox:SetSize(160, 20)
+    profileNameEditBox:SetPoint("TOPLEFT", activeProfileLabel, "BOTTOMLEFT", 8, -12)
 
-    local function RefreshCopyDropdown()
-        selectedProfileKey = nil
-        UIDropDownMenu_SetText(copyDropdown, L.COPY_SELECT_CHARACTER)
+    local createProfileButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    createProfileButton:SetSize(140, 22)
+    createProfileButton:SetText(L.PROFILE_CREATE_BUTTON)
+    createProfileButton:SetPoint("LEFT", profileNameEditBox, "RIGHT", 8, 0)
+    addon.ApplyFont(createProfileButton, "highlight")
 
-        UIDropDownMenu_Initialize(copyDropdown, function(dropdown, level)
-            for _, profile in ipairs(addon.GetOtherClassProfiles and addon.GetOtherClassProfiles() or {}) do
+    local profileSelectDropdown = CreateFrame("Frame", "SelfBuffTrackerOptionsProfileDropdown", panel, "UIDropDownMenuTemplate")
+    profileSelectDropdown:SetPoint("TOPLEFT", profileNameEditBox, "BOTTOMLEFT", -16, -8)
+    UIDropDownMenu_SetWidth(profileSelectDropdown, 160)
+
+    local switchProfileButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    switchProfileButton:SetSize(90, 22)
+    switchProfileButton:SetText(L.PROFILE_SWITCH_BUTTON)
+    switchProfileButton:SetPoint("LEFT", profileSelectDropdown, "RIGHT", 8, 2)
+    addon.ApplyFont(switchProfileButton, "highlight")
+
+    local importProfileButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    importProfileButton:SetSize(110, 22)
+    importProfileButton:SetText(L.PROFILE_IMPORT_BUTTON)
+    importProfileButton:SetPoint("LEFT", switchProfileButton, "RIGHT", 8, 0)
+    addon.ApplyFont(importProfileButton, "highlight")
+
+    local deleteProfileButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    deleteProfileButton:SetSize(90, 22)
+    deleteProfileButton:SetText(L.PROFILE_DELETE_BUTTON)
+    deleteProfileButton:SetPoint("LEFT", importProfileButton, "RIGHT", 8, 0)
+    addon.ApplyFont(deleteProfileButton, "highlight")
+
+    local selectedProfileName
+
+    local function RefreshProfileDropdown()
+        activeProfileLabel:SetText(string.format(L.PROFILE_ACTIVE_LABEL,
+            (addon.GetActiveProfileName and addon.GetActiveProfileName()) or "Default"))
+
+        selectedProfileName = nil
+        UIDropDownMenu_SetText(profileSelectDropdown, L.PROFILE_NONE)
+
+        UIDropDownMenu_Initialize(profileSelectDropdown, function(dropdown, level)
+            for _, name in ipairs(addon.GetProfileNames and addon.GetProfileNames() or {}) do
                 local info = UIDropDownMenu_CreateInfo()
-                info.text = profile.name .. " - " .. profile.realm
+                info.text = name
                 info.func = function()
-                    selectedProfileKey = profile.key
-                    UIDropDownMenu_SetText(copyDropdown, info.text)
+                    selectedProfileName = name
+                    UIDropDownMenu_SetText(profileSelectDropdown, name)
                     CloseDropDownMenus()
                 end
                 UIDropDownMenu_AddButton(info, level)
@@ -38,20 +110,44 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
         end)
     end
 
-    local copyButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    copyButton:SetSize(100, 22)
-    copyButton:SetText(L.COPY_BUTTON)
-    copyButton:SetPoint("LEFT", copyDropdown, "RIGHT", 8, 2)
-    addon.ApplyFont(copyButton, "highlight")
-    copyButton:SetScript("OnClick", function()
-        if selectedProfileKey and addon.CopyProfileFrom then
-            addon.CopyProfileFrom(selectedProfileKey)
-            print("|cff00ff00[SBT]|r " .. L.COPY_DONE)
+    createProfileButton:SetScript("OnClick", function()
+        local text = strtrim(profileNameEditBox:GetText() or "")
+        if text == "" then return end
+        if addon.CreateProfile and addon.CreateProfile(text) then
+            profileNameEditBox:SetText("")
+            print("|cff00ff00[SBT]|r " .. string.format(L.PROFILE_CREATED, text))
+        else
+            print("|cff00ff00[SBT]|r " .. string.format(L.PROFILE_NAME_TAKEN, text))
+        end
+    end)
+    profileNameEditBox:SetScript("OnEnterPressed", function(self)
+        createProfileButton:Click()
+        self:ClearFocus()
+    end)
+
+    switchProfileButton:SetScript("OnClick", function()
+        if selectedProfileName and addon.SwitchProfile then
+            addon.SwitchProfile(selectedProfileName)
+            print("|cff00ff00[SBT]|r " .. string.format(L.PROFILE_SWITCHED, selectedProfileName))
+        end
+    end)
+
+    importProfileButton:SetScript("OnClick", function()
+        if selectedProfileName then
+            StaticPopup_Show("SELFBUFFTRACKER_IMPORT_PROFILE",
+                (addon.GetActiveProfileName and addon.GetActiveProfileName()) or "Default",
+                selectedProfileName, selectedProfileName)
+        end
+    end)
+
+    deleteProfileButton:SetScript("OnClick", function()
+        if selectedProfileName then
+            StaticPopup_Show("SELFBUFFTRACKER_DELETE_PROFILE", selectedProfileName, nil, selectedProfileName)
         end
     end)
 
     local groupsLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    groupsLabel:SetPoint("TOPLEFT", copyDropdown, "BOTTOMLEFT", 16, -20)
+    groupsLabel:SetPoint("TOPLEFT", profileSelectDropdown, "BOTTOMLEFT", 16, -20)
     groupsLabel:SetText(L.BUFF_GROUPS)
     addon.ApplyFont(groupsLabel, "normalLarge")
 
@@ -173,6 +269,14 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
 
     local ROW_HEIGHT = 64
 
+    local CONDITION_OPTIONS = {
+        { value = nil, label = L.CONDITION_ALWAYS },
+        { value = "combat", label = L.CONDITION_COMBAT },
+        { value = "nocombat", label = L.CONDITION_NOCOMBAT },
+        { value = "resting", label = L.CONDITION_RESTING },
+        { value = "noresting", label = L.CONDITION_NORESTING },
+    }
+
     local function GetSpellIcon(spellName)
         local info = C_Spell.GetSpellInfo(spellName)
         if info and info.iconID then
@@ -229,6 +333,10 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
                 row.groupDropdown:SetPoint("TOPLEFT", row.text, "BOTTOMLEFT", -16, -6)
                 UIDropDownMenu_SetWidth(row.groupDropdown, 140)
 
+                row.conditionDropdown = CreateFrame("Frame", nil, row, "UIDropDownMenuTemplate")
+                row.conditionDropdown:SetPoint("LEFT", row.groupDropdown, "RIGHT", -20, 0)
+                UIDropDownMenu_SetWidth(row.conditionDropdown, 130)
+
                 spellRows[i] = row
             end
 
@@ -239,6 +347,7 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
             row.text:SetText(spell)
             row.removeButton:SetScript("OnClick", function()
                 SelfBuffTrackerDB.trackedSpells[spell] = nil
+                if SelfBuffTrackerDB.spellConditions then SelfBuffTrackerDB.spellConditions[spell] = nil end
                 if addon.RemoveSpellFromAllGroups then addon.RemoveSpellFromAllGroups(spell) end
                 addon.CheckBuffs()
                 RefreshSpellList()
@@ -272,6 +381,30 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
                 end
             end)
             UIDropDownMenu_SetText(row.groupDropdown, (addon.FindGroupForSpell and addon.FindGroupForSpell(spell)) or L.GROUP_NONE)
+
+            UIDropDownMenu_Initialize(row.conditionDropdown, function(dropdown, level)
+                for _, option in ipairs(CONDITION_OPTIONS) do
+                    local info = UIDropDownMenu_CreateInfo()
+                    info.text = option.label
+                    info.func = function()
+                        SelfBuffTrackerDB.spellConditions[spell] = option.value
+                        UIDropDownMenu_SetText(row.conditionDropdown, option.label)
+                        CloseDropDownMenus()
+                        addon.CheckBuffs()
+                    end
+                    UIDropDownMenu_AddButton(info, level)
+                end
+            end)
+
+            local currentCondition = SelfBuffTrackerDB.spellConditions and SelfBuffTrackerDB.spellConditions[spell]
+            local currentConditionLabel = L.CONDITION_ALWAYS
+            for _, option in ipairs(CONDITION_OPTIONS) do
+                if option.value == currentCondition then
+                    currentConditionLabel = option.label
+                    break
+                end
+            end
+            UIDropDownMenu_SetText(row.conditionDropdown, currentConditionLabel)
 
             row:Show()
         end
@@ -316,7 +449,7 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
     end)
 
     local function RefreshValues()
-        RefreshCopyDropdown()
+        RefreshProfileDropdown()
         RefreshGroupDropdown()
         RefreshSpellList()
     end
