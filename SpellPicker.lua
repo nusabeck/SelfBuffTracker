@@ -60,18 +60,6 @@ local function IsSpellKnownSafe(spellID)
     return true
 end
 
-local function ClassifySpellForPicker(spellID)
-    local isHarmful = IsHarmfulSpellSafe(spellID)
-    local isBuff = IsBuffSpell(spellID)
-    if not isBuff and not isHarmful then
-        -- Some self-only effects (e.g. Paladin Auras, various racials) aren't
-        -- reliably flagged as "helpful" by the game's API. Treat anything not
-        -- clearly offensive as a candidate buff so it can still be tracked.
-        isBuff = true
-    end
-    return isBuff
-end
-
 local function IsSpellCurrentlyAvailable(spellID)
     if not spellID then return true end
 
@@ -233,8 +221,9 @@ local function GetSpellbookEntries(buffsOnly)
                         and not seen[itemInfo.name] and not ExcludedUtilitySpellNames[itemInfo.name] then
                         local spellID = itemInfo.spellID or itemInfo.actionID
                         if not shapeshiftFormIDs[spellID] then
-                            local isBuff = ClassifySpellForPicker(spellID)
-                            if (not buffsOnly or isBuff) and IsSpellCurrentlyAvailable(spellID) then
+                            local isBuff = IsBuffSpell(spellID)
+                            local isRelevant = isBuff or IsHarmfulSpellSafe(spellID)
+                            if isRelevant and (not buffsOnly or isBuff) and IsSpellCurrentlyAvailable(spellID) then
                                 seen[itemInfo.name] = true
                                 table.insert(entries, {
                                     name = itemInfo.name,
@@ -290,9 +279,24 @@ local function GetSpellbookEntries(buffsOnly)
                             end
 
                             if not (spellID and shapeshiftFormIDs[spellID]) then
-                                local isBuff = ClassifySpellForPicker(spellID)
+                                local isBuff = IsBuffSpell(spellID)
+                                local isRelevant = isBuff or IsHarmfulSpellSafe(spellID)
 
-                                if not buffsOnly or isBuff then
+                                if not isRelevant and spellID then
+                                    isBuff = false
+                                    isRelevant = true
+                                end
+
+                                if isRelevant and (isBuff and buffsOnly) then
+                                    seen[spellName] = true
+                                    table.insert(entries, {
+                                        name = spellName,
+                                        iconID = iconID,
+                                        category = name,
+                                        isBuff = isBuff,
+                                        isRecommended = true,
+                                    })
+                                elseif isRelevant and (not buffsOnly or isBuff) then
                                     seen[spellName] = true
                                     table.insert(entries, {
                                         name = spellName,
