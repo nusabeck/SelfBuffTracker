@@ -49,6 +49,12 @@ local BASE = {
     CUSTOM_SOUND_LABEL = "Custom (ID %s)",
     RELOAD_HINT = "Language change fully applies after /reload.",
 
+    BUFF_GROUPS = "Buff groups",
+    GROUP_CREATE_BUTTON = "Create group",
+    GROUP_DELETE_TOOLTIP = "Delete group",
+    GROUP_ICON_LABEL = "Icon:",
+    GROUP_NONE = "-- none --",
+
     PICKER_TITLE = "Choose a buff to track",
     PICKER_BUFFS_ONLY = "buffs only",
     PICKER_HINT_SPEC = "List matches your current specialization",
@@ -74,6 +80,16 @@ local BASE = {
     CMD_SOUND_NOT_FOUND = "Sound with ID %s not found",
     CMD_SOUND_ID_SET = "Alert sound set to ID: %s",
 
+    CMD_GROUP_CREATED = "Created group: %s",
+    CMD_GROUP_EXISTS = "Group '%s' already exists",
+    CMD_GROUP_DELETED = "Deleted group: %s",
+    CMD_GROUP_NOT_FOUND = "Group '%s' not found",
+    CMD_GROUP_ADDED = "Added '%s' to group '%s'",
+    CMD_GROUP_REMOVED = "Removed '%s' from group '%s'",
+    CMD_GROUP_USAGE = "Usage: /sbt group create|delete|add|remove|list ...",
+    CMD_GROUP_LIST_HEADER = "Buff groups:",
+    CMD_UNGROUPED_HEADER = "Ungrouped buffs:",
+
     HELP_HEADER = "--- SelfBuffTracker Commands ---",
     HELP_ADD = "/sbt add [Buff Name] - Adds a buff to track (e.g. /sbt add Well Fed)",
     HELP_REMOVE = "/sbt remove [Buff Name] - Removes a buff from the list",
@@ -83,6 +99,7 @@ local BASE = {
     HELP_SIZE = "/sbt size [number] - Sets the icon size",
     HELP_WARNING = "/sbt warning [SOUND_ID|name|list] - Sets the alert sound (presets via 'list', custom ID at:)",
     HELP_OPTIONS = "/sbt options - Opens the settings UI",
+    HELP_GROUP = "/sbt group create|delete|add|remove|list - Manages buff groups (one reminder icon per group)",
 }
 
 local overrides = {
@@ -157,6 +174,24 @@ local overrides = {
         ADD_BUTTON = "Hinzufügen",
         SPELLBOOK_BUTTON = "Aus Zauberbuch wählen",
         CUSTOM_SOUND_LABEL = "Eigene (ID %s)",
+
+        BUFF_GROUPS = "Buff-Gruppen",
+        GROUP_CREATE_BUTTON = "Gruppe erstellen",
+        GROUP_DELETE_TOOLTIP = "Gruppe löschen",
+        GROUP_ICON_LABEL = "Icon:",
+        GROUP_NONE = "-- keine --",
+
+        CMD_GROUP_CREATED = "Gruppe erstellt: %s",
+        CMD_GROUP_EXISTS = "Gruppe '%s' existiert bereits",
+        CMD_GROUP_DELETED = "Gruppe gelöscht: %s",
+        CMD_GROUP_NOT_FOUND = "Gruppe '%s' nicht gefunden",
+        CMD_GROUP_ADDED = "'%s' zu Gruppe '%s' hinzugefügt",
+        CMD_GROUP_REMOVED = "'%s' aus Gruppe '%s' entfernt",
+        CMD_GROUP_USAGE = "Verwendung: /sbt group create|delete|add|remove|list ...",
+        CMD_GROUP_LIST_HEADER = "Buff-Gruppen:",
+        CMD_UNGROUPED_HEADER = "Buffs ohne Gruppe:",
+
+        HELP_GROUP = "/sbt group create|delete|add|remove|list - Verwaltet Buff-Gruppen (ein Symbol pro Gruppe)",
     },
     frFR = {
         OPTIONS_TITLE = "SelfBuffTracker - Paramètres",

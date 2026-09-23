@@ -50,8 +50,94 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
         end
     end)
 
+    local groupsLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    groupsLabel:SetPoint("TOPLEFT", copyDropdown, "BOTTOMLEFT", 16, -20)
+    groupsLabel:SetText(L.BUFF_GROUPS)
+    addon.ApplyFont(groupsLabel, "normalLarge")
+
+    local groupNameEditBox = CreateFrame("EditBox", "SelfBuffTrackerOptionsGroupEditBox", panel, "InputBoxTemplate")
+    groupNameEditBox:SetAutoFocus(false)
+    groupNameEditBox:SetSize(160, 20)
+    groupNameEditBox:SetPoint("TOPLEFT", groupsLabel, "BOTTOMLEFT", 8, -12)
+
+    local createGroupButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    createGroupButton:SetSize(120, 22)
+    createGroupButton:SetText(L.GROUP_CREATE_BUTTON)
+    createGroupButton:SetPoint("LEFT", groupNameEditBox, "RIGHT", 8, 0)
+    addon.ApplyFont(createGroupButton, "highlight")
+
+    local groupSelectDropdown = CreateFrame("Frame", "SelfBuffTrackerOptionsGroupDropdown", panel, "UIDropDownMenuTemplate")
+    groupSelectDropdown:SetPoint("TOPLEFT", groupNameEditBox, "BOTTOMLEFT", -16, -8)
+    UIDropDownMenu_SetWidth(groupSelectDropdown, 160)
+
+    local deleteGroupButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    deleteGroupButton:SetSize(120, 22)
+    deleteGroupButton:SetText(L.GROUP_DELETE_TOOLTIP)
+    deleteGroupButton:SetPoint("LEFT", groupSelectDropdown, "RIGHT", 8, 2)
+    addon.ApplyFont(deleteGroupButton, "highlight")
+
+    local groupIconLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    groupIconLabel:SetPoint("TOPLEFT", groupSelectDropdown, "BOTTOMLEFT", 16, -24)
+    groupIconLabel:SetText(L.GROUP_ICON_LABEL)
+    addon.ApplyFont(groupIconLabel, "normal")
+
+    local groupIconDropdown = CreateFrame("Frame", "SelfBuffTrackerOptionsGroupIconDropdown", panel, "UIDropDownMenuTemplate")
+    groupIconDropdown:SetPoint("LEFT", groupIconLabel, "RIGHT", 8, -2)
+    UIDropDownMenu_SetWidth(groupIconDropdown, 160)
+
+    local selectedGroupName
+
+    local function RefreshGroupIconDropdown()
+        local group = selectedGroupName and SelfBuffTrackerDB.buffGroups[selectedGroupName]
+
+        UIDropDownMenu_Initialize(groupIconDropdown, function(dropdown, level)
+            if not group then return end
+            for _, member in ipairs(group.members) do
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = (addon.GetSpellDisplayName and addon.GetSpellDisplayName(member)) or member
+                info.func = function()
+                    group.iconSpell = member
+                    UIDropDownMenu_SetText(groupIconDropdown, info.text)
+                    CloseDropDownMenus()
+                    addon.CheckBuffs()
+                end
+                UIDropDownMenu_AddButton(info, level)
+            end
+        end)
+
+        if group then
+            local current = group.iconSpell or group.members[1]
+            local currentText = current and ((addon.GetSpellDisplayName and addon.GetSpellDisplayName(current)) or current) or L.GROUP_NONE
+            UIDropDownMenu_SetText(groupIconDropdown, currentText)
+            UIDropDownMenu_EnableDropDown(groupIconDropdown)
+        else
+            UIDropDownMenu_SetText(groupIconDropdown, L.GROUP_NONE)
+            UIDropDownMenu_DisableDropDown(groupIconDropdown)
+        end
+    end
+
+    local function RefreshGroupDropdown()
+        selectedGroupName = nil
+        UIDropDownMenu_SetText(groupSelectDropdown, L.GROUP_NONE)
+        RefreshGroupIconDropdown()
+
+        UIDropDownMenu_Initialize(groupSelectDropdown, function(dropdown, level)
+            for groupName in pairs(SelfBuffTrackerDB.buffGroups) do
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = groupName
+                info.func = function()
+                    selectedGroupName = groupName
+                    UIDropDownMenu_SetText(groupSelectDropdown, groupName)
+                    CloseDropDownMenus()
+                    RefreshGroupIconDropdown()
+                end
+                UIDropDownMenu_AddButton(info, level)
+            end
+        end)
+    end
+
     local spellsLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    spellsLabel:SetPoint("TOPLEFT", copyDropdown, "BOTTOMLEFT", 16, -20)
+    spellsLabel:SetPoint("TOPLEFT", groupIconDropdown, "BOTTOMLEFT", 16, -20)
     spellsLabel:SetText(L.TRACKED_BUFFS)
     addon.ApplyFont(spellsLabel, "normalLarge")
 
@@ -85,7 +171,7 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
     scrollChild:SetSize(1, 1)
     scrollFrame:SetScrollChild(scrollChild)
 
-    local ROW_HEIGHT = 30
+    local ROW_HEIGHT = 64
 
     local function GetSpellIcon(spellName)
         local info = C_Spell.GetSpellInfo(spellName)
@@ -123,21 +209,25 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
 
                 row.icon = row:CreateTexture(nil, "ARTWORK")
                 row.icon:SetSize(22, 22)
-                row.icon:SetPoint("LEFT", 6, 0)
+                row.icon:SetPoint("TOPLEFT", 6, -6)
                 row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
                 row.removeButton = CreateFrame("Button", nil, row)
                 row.removeButton:SetSize(18, 18)
-                row.removeButton:SetPoint("RIGHT", -8, 0)
+                row.removeButton:SetPoint("TOPRIGHT", -8, -6)
                 row.removeButton:SetNormalAtlas("common-icon-redx")
                 row.removeButton:SetPushedAtlas("common-icon-redx")
                 row.removeButton:SetHighlightAtlas("common-icon-redx", "ADD")
 
                 row.text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-                row.text:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+                row.text:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, 0)
                 row.text:SetPoint("RIGHT", row.removeButton, "LEFT", -8, 0)
                 row.text:SetJustifyH("LEFT")
                 addon.ApplyFont(row.text, "highlight")
+
+                row.groupDropdown = CreateFrame("Frame", nil, row, "UIDropDownMenuTemplate")
+                row.groupDropdown:SetPoint("TOPLEFT", row.text, "BOTTOMLEFT", -16, -6)
+                UIDropDownMenu_SetWidth(row.groupDropdown, 140)
 
                 spellRows[i] = row
             end
@@ -149,9 +239,40 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
             row.text:SetText(spell)
             row.removeButton:SetScript("OnClick", function()
                 SelfBuffTrackerDB.trackedSpells[spell] = nil
+                if addon.RemoveSpellFromAllGroups then addon.RemoveSpellFromAllGroups(spell) end
                 addon.CheckBuffs()
                 RefreshSpellList()
+                RefreshGroupIconDropdown()
             end)
+
+            UIDropDownMenu_Initialize(row.groupDropdown, function(dropdown, level)
+                local noneInfo = UIDropDownMenu_CreateInfo()
+                noneInfo.text = L.GROUP_NONE
+                noneInfo.func = function()
+                    if addon.RemoveSpellFromAllGroups then addon.RemoveSpellFromAllGroups(spell) end
+                    addon.CheckBuffs()
+                    RefreshSpellList()
+                    RefreshGroupIconDropdown()
+                    CloseDropDownMenus()
+                end
+                UIDropDownMenu_AddButton(noneInfo, level)
+
+                for groupName, group in pairs(SelfBuffTrackerDB.buffGroups) do
+                    local info = UIDropDownMenu_CreateInfo()
+                    info.text = groupName
+                    info.func = function()
+                        if addon.RemoveSpellFromAllGroups then addon.RemoveSpellFromAllGroups(spell) end
+                        table.insert(group.members, spell)
+                        addon.CheckBuffs()
+                        RefreshSpellList()
+                        RefreshGroupIconDropdown()
+                        CloseDropDownMenus()
+                    end
+                    UIDropDownMenu_AddButton(info, level)
+                end
+            end)
+            UIDropDownMenu_SetText(row.groupDropdown, (addon.FindGroupForSpell and addon.FindGroupForSpell(spell)) or L.GROUP_NONE)
+
             row:Show()
         end
     end
@@ -170,8 +291,33 @@ local function CreateTrackedBuffsSubcategory(parentCategory)
         self:ClearFocus()
     end)
 
+    createGroupButton:SetScript("OnClick", function()
+        local text = strtrim(groupNameEditBox:GetText() or "")
+        if text ~= "" and not SelfBuffTrackerDB.buffGroups[text] then
+            SelfBuffTrackerDB.buffGroups[text] = { members = {} }
+            groupNameEditBox:SetText("")
+            addon.CheckBuffs()
+            RefreshGroupDropdown()
+            RefreshSpellList()
+        end
+    end)
+    groupNameEditBox:SetScript("OnEnterPressed", function(self)
+        createGroupButton:Click()
+        self:ClearFocus()
+    end)
+
+    deleteGroupButton:SetScript("OnClick", function()
+        if selectedGroupName then
+            SelfBuffTrackerDB.buffGroups[selectedGroupName] = nil
+            addon.CheckBuffs()
+            RefreshGroupDropdown()
+            RefreshSpellList()
+        end
+    end)
+
     local function RefreshValues()
         RefreshCopyDropdown()
+        RefreshGroupDropdown()
         RefreshSpellList()
     end
 
