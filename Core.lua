@@ -186,16 +186,15 @@ function addon.DebugBuffState(spellInput)
 
     table.insert(lines, "--- your current buffs (exact names) ---")
     local foundAny = false
-    if C_UnitAuras and C_UnitAuras.GetAuraSlots then
-        local ok, _, slots = pcall(C_UnitAuras.GetAuraSlots, "player", "HELPFUL")
-        if ok and slots then
-            for _, slot in ipairs(slots) do
-                local auraOk, aura = pcall(C_UnitAuras.GetAuraDataBySlot, "player", slot)
-                if auraOk and aura then
-                    foundAny = true
-                    table.insert(lines, "'" .. tostring(aura.name) .. "' (spellID=" .. tostring(aura.spellId) .. ")")
-                end
+    if AuraUtil and AuraUtil.ForEachAura then
+        local ok, err = pcall(AuraUtil.ForEachAura, "player", "HELPFUL", nil, function(aura)
+            if aura then
+                foundAny = true
+                table.insert(lines, "'" .. tostring(aura.name) .. "' (spellID=" .. tostring(aura.spellId) .. ")")
             end
+        end, true)
+        if not ok then
+            table.insert(lines, "AuraUtil.ForEachAura failed: " .. tostring(err))
         end
     end
     if not foundAny and UnitAura then
