@@ -12,6 +12,7 @@
 *   **Audio Alerts:** Plays a clear warning sound when you are missing buffs upon entering combat or at regular intervals.
 *   **Per-Character Profiles:** Each character maintains its own independent list of tracked buffs and settings.
 *   **Minimalist & Clean UI:** Dynamic icon frames that scale and auto-adjust based on how many buffs are currently missing.
+*   **Buff Groups:** Group alternative buffs (e.g. different flasks) so they show as a single reminder icon that disappears as soon as any one of them is active — no more duplicate reminders for buffs that serve the same purpose.
 
 ***
 ## Screenshots
@@ -37,6 +38,13 @@ Use `/sbt` or `/buff` in chat to configure the addon:
 *   `/sbt lock` – Toggles frame locking (unlocks the container to move it via drag & drop)
 *   `/sbt sound` – Toggles audio warning alerts ON/OFF
 *   `/sbt size [number]` – Changes the icon size (Default: `50`)
+*   `/sbt group create [Name]` – Creates a new buff group
+*   `/sbt group add [Name] [Spell Link or Name]` – Adds a buff to a group (tracks it if it isn't already)
+*   `/sbt group remove [Name] [Spell Link or Name]` – Removes a buff from a group
+*   `/sbt group delete [Name]` – Deletes a group (its buffs stay tracked, just ungrouped)
+*   `/sbt group list` – Lists all groups and their members
+
+Groups can also be managed from the settings UI (`/sbt options`) under **Tracked Buffs → Buff groups**, including assigning a buff to a group from a dropdown and picking which group member's icon is displayed.
 
 ***
 
