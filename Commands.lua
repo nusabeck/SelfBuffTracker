@@ -204,15 +204,6 @@ SlashCmdList["SELFBUFFTRACKER"] = function(msg)
         SelfBuffTrackerDB.columns = tonumber(args[2])
         print("|cff00ff00[SBT]|r Počet sloupců nastaven na: " .. args[2])
         addon.CheckBuffs()
-
-    elseif cmd == "debugspell" and tonumber(args[2]) then
-        local spellID = tonumber(args[2])
-        print("|cff00ff00[SBT DEBUG]|r spellID " .. spellID)
-        if addon.DebugSpellPicker then
-            for _, line in ipairs(addon.DebugSpellPicker(spellID)) do
-                print("  " .. line)
-            end
-        end
     else
         print("|cff00ff00" .. L.HELP_HEADER .. "|r")
         print("|cffffaa00" .. L.HELP_ADD .. "|r")

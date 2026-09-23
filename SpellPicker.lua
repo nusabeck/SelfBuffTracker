@@ -214,33 +214,6 @@ local ExcludedSkillLineNames = {
     ["Archaeology"] = true,
 }
 
-local function AddFlyoutSpells(entries, seen, excluded, flyoutID, categoryName, buffsOnly)
-    if not (flyoutID and GetFlyoutInfo and GetFlyoutSlotInfo) then return end
-
-    local ok, _, _, numSlots = pcall(GetFlyoutInfo, flyoutID)
-    if not ok or not numSlots then return end
-
-    for slot = 1, numSlots do
-        local slotOk, spellID, overrideSpellID, isKnown = pcall(GetFlyoutSlotInfo, flyoutID, slot)
-        if slotOk and spellID and (isKnown == nil or isKnown) then
-            local effectiveID = (overrideSpellID and overrideSpellID ~= 0) and overrideSpellID or spellID
-            local name, iconID = GetSpellNameAndIcon(effectiveID)
-            if name and not seen[name] and not excluded[name] then
-                local isBuff = ClassifySpellForPicker(effectiveID)
-                if (not buffsOnly or isBuff) and IsSpellCurrentlyAvailable(effectiveID) then
-                    seen[name] = true
-                    table.insert(entries, {
-                        name = name,
-                        iconID = iconID,
-                        category = categoryName,
-                        isBuff = isBuff,
-                    })
-                end
-            end
-        end
-    end
-end
-
 local function GetSpellbookEntries(buffsOnly)
     local entries = {}
     local seen = {}
@@ -256,26 +229,20 @@ local function GetSpellbookEntries(buffsOnly)
                 for i = 1, skillLineInfo.numSpellBookItems do
                     local index = offset + i
                     local itemOk, itemInfo = pcall(C_SpellBook.GetSpellBookItemInfo, index, Enum.SpellBookSpellBank.Player)
-                    if itemOk and itemInfo and itemInfo.name and not itemInfo.isPassive
-                        and not ExcludedUtilitySpellNames[itemInfo.name] then
-                        if itemInfo.itemType == Enum.SpellBookItemType.Spell and not seen[itemInfo.name] then
-                            local spellID = itemInfo.spellID or itemInfo.actionID
-                            if not shapeshiftFormIDs[spellID] then
-                                local isBuff = ClassifySpellForPicker(spellID)
-                                if (not buffsOnly or isBuff) and IsSpellCurrentlyAvailable(spellID) then
-                                    seen[itemInfo.name] = true
-                                    table.insert(entries, {
-                                        name = itemInfo.name,
-                                        iconID = itemInfo.iconID,
-                                        category = skillLineInfo.name,
-                                        isBuff = isBuff,
-                                    })
-                                end
+                    if itemOk and itemInfo and itemInfo.name and not itemInfo.isPassive and itemInfo.itemType == Enum.SpellBookItemType.Spell
+                        and not seen[itemInfo.name] and not ExcludedUtilitySpellNames[itemInfo.name] then
+                        local spellID = itemInfo.spellID or itemInfo.actionID
+                        if not shapeshiftFormIDs[spellID] then
+                            local isBuff = ClassifySpellForPicker(spellID)
+                            if (not buffsOnly or isBuff) and IsSpellCurrentlyAvailable(spellID) then
+                                seen[itemInfo.name] = true
+                                table.insert(entries, {
+                                    name = itemInfo.name,
+                                    iconID = itemInfo.iconID,
+                                    category = skillLineInfo.name,
+                                    isBuff = isBuff,
+                                })
                             end
-                        elseif itemInfo.itemType == Enum.SpellBookItemType.Flyout then
-                            -- Some abilities (e.g. Paladin Auras) are grouped behind a single
-                            -- flyout button instead of individual spellbook entries.
-                            AddFlyoutSpells(entries, seen, ExcludedUtilitySpellNames, itemInfo.actionID, skillLineInfo.name, buffsOnly)
                         end
                     end
                 end
@@ -300,45 +267,39 @@ local function GetSpellbookEntries(buffsOnly)
                         local iconID = GetSpellBookItemTexture(spellIndex, bookType)
                         
                         if spellName and not seen[spellName] and not ExcludedUtilitySpellNames[spellName] then
-                            local itemType, id
-                            if GetSpellBookItemInfo then
-                                itemType, id = GetSpellBookItemInfo(spellIndex, bookType)
-                            end
+                            local link = GetSpellBookItemLink and GetSpellBookItemLink(spellIndex, bookType)
+                            local spellID = nil
 
-                            if itemType == "FLYOUT" then
-                                -- Some abilities (e.g. Paladin Auras) are grouped behind a single
-                                -- flyout button instead of individual spellbook entries.
-                                AddFlyoutSpells(entries, seen, ExcludedUtilitySpellNames, id, name, buffsOnly)
-                            else
-                                local spellID = nil
+                            if GetSpellBookItemInfo then
+                                local itemType, id = GetSpellBookItemInfo(spellIndex, bookType)
                                 if itemType == "SPELL" or itemType == "FUTURESPELL" then
                                     spellID = id
                                 end
+                            end
 
-                                if not spellID and C_Spell and C_Spell.GetSpellInfo then
-                                    local info = C_Spell.GetSpellInfo(spellName)
-                                    if info and info.spellID then
-                                        spellID = info.spellID
-                                    end
+                            if not spellID and C_Spell and C_Spell.GetSpellInfo then
+                                local info = C_Spell.GetSpellInfo(spellName)
+                                if info and info.spellID then
+                                    spellID = info.spellID
                                 end
+                            end
 
-                                if not spellID and GetSpellBookItemLink then
-                                    local link = GetSpellBookItemLink(spellIndex, bookType)
-                                    spellID = link and tonumber(link:match("spell:(%d+)"))
-                                end
+                            if not spellID and GetSpellBookItemLink then
+                                local link = GetSpellBookItemLink(spellIndex, bookType)
+                                spellID = link and tonumber(link:match("spell:(%d+)"))
+                            end
 
-                                if not (spellID and shapeshiftFormIDs[spellID]) then
-                                    local isBuff = ClassifySpellForPicker(spellID)
+                            if not (spellID and shapeshiftFormIDs[spellID]) then
+                                local isBuff = ClassifySpellForPicker(spellID)
 
-                                    if not buffsOnly or isBuff then
-                                        seen[spellName] = true
-                                        table.insert(entries, {
-                                            name = spellName,
-                                            iconID = iconID,
-                                            category = name,
-                                            isBuff = isBuff,
-                                        })
-                                    end
+                                if not buffsOnly or isBuff then
+                                    seen[spellName] = true
+                                    table.insert(entries, {
+                                        name = spellName,
+                                        iconID = iconID,
+                                        category = name,
+                                        isBuff = isBuff,
+                                    })
                                 end
                             end
                         end
@@ -369,40 +330,6 @@ local function GetSpellbookEntries(buffsOnly)
     return entries
 end
 addon.GetSpellbookEntries = GetSpellbookEntries
-
-function addon.DebugSpellPicker(spellID)
-    local lines = {}
-
-    local branch = "none"
-    if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and Enum and Enum.SpellBookSpellBank then
-        branch = "C_SpellBook (retail-unified)"
-    elseif GetNumSpellTabs then
-        branch = "legacy (GetNumSpellTabs)"
-    end
-    table.insert(lines, "API branch: " .. branch)
-
-    local name, iconID = GetSpellNameAndIcon(spellID)
-    table.insert(lines, "name: " .. tostring(name) .. "  icon: " .. tostring(iconID))
-    table.insert(lines, "IsBuffSpell: " .. tostring(IsBuffSpell(spellID)))
-    table.insert(lines, "IsHarmfulSpellSafe: " .. tostring(IsHarmfulSpellSafe(spellID)))
-    table.insert(lines, "ClassifySpellForPicker: " .. tostring(ClassifySpellForPicker(spellID)))
-    table.insert(lines, "IsSpellKnownSafe: " .. tostring(IsSpellKnownSafe(spellID)))
-    table.insert(lines, "IsSpellCurrentlyAvailable: " .. tostring(IsSpellCurrentlyAvailable(spellID)))
-
-    local foundAll, foundBuffsOnly = false, false
-    if name then
-        for _, entry in ipairs(GetSpellbookEntries(false)) do
-            if entry.name == name then foundAll = true break end
-        end
-        for _, entry in ipairs(GetSpellbookEntries(true)) do
-            if entry.name == name then foundBuffsOnly = true break end
-        end
-    end
-    table.insert(lines, "in picker list (buffs only OFF): " .. tostring(foundAll))
-    table.insert(lines, "in picker list (buffs only ON): " .. tostring(foundBuffsOnly))
-
-    return lines
-end
 
 local pickerFrame
 
