@@ -184,30 +184,33 @@ function addon.DebugBuffState(spellInput)
         table.insert(lines, "GetAuraDataBySpellName: not available on this client")
     end
 
-    table.insert(lines, "--- your current buffs (exact names, via UnitAura) ---")
-    local i = 1
+    table.insert(lines, "--- your current buffs (exact names) ---")
     local foundAny = false
-    while true do
-        local name, _, _, _, _, _, _, _, _, auraSpellID = UnitAura("player", i, "HELPFUL")
-        if not name then break end
-        foundAny = true
-        table.insert(lines, i .. ": '" .. name .. "' (spellID=" .. tostring(auraSpellID) .. ")")
-        i = i + 1
-        if i > 40 then break end
-    end
-    if not foundAny then
-        table.insert(lines, "UnitAura returned nothing - trying C_UnitAuras.GetAuraSlots...")
-        if C_UnitAuras and C_UnitAuras.GetAuraSlots then
-            local ok, _, slots = pcall(C_UnitAuras.GetAuraSlots, "player", "HELPFUL")
-            if ok and slots then
-                for _, slot in ipairs(slots) do
-                    local auraOk, aura = pcall(C_UnitAuras.GetAuraDataBySlot, "player", slot)
-                    if auraOk and aura then
-                        table.insert(lines, "'" .. tostring(aura.name) .. "' (spellID=" .. tostring(aura.spellId) .. ")")
-                    end
+    if C_UnitAuras and C_UnitAuras.GetAuraSlots then
+        local ok, _, slots = pcall(C_UnitAuras.GetAuraSlots, "player", "HELPFUL")
+        if ok and slots then
+            for _, slot in ipairs(slots) do
+                local auraOk, aura = pcall(C_UnitAuras.GetAuraDataBySlot, "player", slot)
+                if auraOk and aura then
+                    foundAny = true
+                    table.insert(lines, "'" .. tostring(aura.name) .. "' (spellID=" .. tostring(aura.spellId) .. ")")
                 end
             end
         end
+    end
+    if not foundAny and UnitAura then
+        local i = 1
+        while true do
+            local name, _, _, _, _, _, _, _, _, auraSpellID = UnitAura("player", i, "HELPFUL")
+            if not name then break end
+            foundAny = true
+            table.insert(lines, i .. ": '" .. name .. "' (spellID=" .. tostring(auraSpellID) .. ")")
+            i = i + 1
+            if i > 40 then break end
+        end
+    end
+    if not foundAny then
+        table.insert(lines, "no aura enumeration method available or returned no results")
     end
 
     table.insert(lines, "--- full last CheckBuffs() render (" .. (addon.lastMissingSpells and #addon.lastMissingSpells or 0) .. " icons) ---")
